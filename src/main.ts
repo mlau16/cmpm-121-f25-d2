@@ -18,16 +18,33 @@ function setupUI(): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
+  //Buttons
+  const buttonContainer = document.createElement("div");
+
+  const undoButton = document.createElement("button");
+  undoButton.textContent = "Undo";
+
+  const redoButton = document.createElement("button");
+  redoButton.textContent = "Redo";
+
+  const clearButton = document.createElement("button");
+  clearButton.textContent = "Clear";
+
+  buttonContainer.appendChild(undoButton);
+  buttonContainer.appendChild(redoButton);
+  buttonContainer.appendChild(clearButton);
+  document.body.appendChild(buttonContainer);
+
+  //Drawing
   const lines: { x: number; y: number }[][] = [];
   const redoLines: { x: number; y: number }[][] = [];
-
   let currentLine: { x: number; y: number }[] | null;
+
+  const cursor = { active: false, x: 0, y: 0 };
 
   ctx.lineWidth = 2;
   ctx.strokeStyle = "black";
   ctx.lineCap = "round";
-
-  const cursor = { active: false, x: 0, y: 0 };
 
   canvas.addEventListener("mousedown", (e) => {
     cursor.active = true;
@@ -43,20 +60,10 @@ function setupUI(): void {
   });
 
   canvas.addEventListener("mousemove", (e) => {
-    if (!currentLine) {
-      throw Error("");
+    if (cursor.active && currentLine) {
+      currentLine.push({ x: e.offsetX, y: e.offsetY });
+      canvas.dispatchEvent(new CustomEvent("drawing-changed"));
     }
-    if (cursor.active) {
-      //ctx.beginPath();
-      //ctx.moveTo(cursor.x, cursor.y);
-      //ctx.lineTo(e.offsetX, e.offsetY);
-      //ctx.stroke();
-      cursor.x = e.offsetX;
-      cursor.y = e.offsetY;
-    }
-    currentLine.push({ x: cursor.x, y: cursor.y });
-
-    canvas.dispatchEvent(new CustomEvent("drawing-changed"));
   });
 
   canvas.addEventListener("mouseup", () => {
@@ -65,12 +72,6 @@ function setupUI(): void {
 
     canvas.dispatchEvent(new CustomEvent("drawing-changed"));
   });
-
-  // canvas.addEventListener("mouseleave", () => {
-  //   cursor.active = false;
-
-  //   canvas.dispatchEvent(new CustomEvent("drawing-changed"));
-  // });
 
   function redraw() {
     if (!ctx) {
@@ -91,4 +92,34 @@ function setupUI(): void {
   }
 
   canvas.addEventListener("drawing-changed", redraw);
+
+  //Clear function
+  function clear(): void {
+    lines.splice(0, lines.length);
+    canvas.dispatchEvent(new CustomEvent("drawing-changed"));
+  }
+
+  clearButton.addEventListener("click", clear);
+
+  //Undo function
+  function undo(): void {
+    if (lines.length > 0) {
+      const popped = lines.pop()!;
+      redoLines.push(popped);
+      canvas.dispatchEvent(new CustomEvent("drawing-changed"));
+    }
+  }
+
+  undoButton.addEventListener("click", undo);
+
+  //Redo function
+  function redo(): void {
+    if (redoLines.length > 0) {
+      const restored = redoLines.pop()!;
+      lines.push(restored);
+      canvas.dispatchEvent(new CustomEvent("drawing-changed"));
+    }
+  }
+
+  redoButton.addEventListener("click", redo);
 }
