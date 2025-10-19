@@ -4,6 +4,32 @@ self.addEventListener("DOMContentLoaded", () => {
   setupUI();
 });
 
+interface DrawableCommand {
+  display(ctx: CanvasRenderingContext2D): void;
+}
+
+class MarkerLine implements DrawableCommand {
+  private points: { x: number; y: number }[] = [];
+
+  constructor(startX: number, startY: number) {
+    this.points.push({ x: startX, y: startY });
+  }
+
+  drag(x: number, y: number): void {
+    this.points.push({ x, y });
+  }
+
+  display(ctx: CanvasRenderingContext2D): void {
+    if (this.points.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(this.points[0].x, this.points[0].y);
+    for (const pt of this.points) {
+      ctx.lineTo(pt.x, pt.y);
+    }
+    ctx.stroke();
+  }
+}
+
 function setupUI(): void {
   const title: HTMLHeadingElement = document.createElement("h1");
   title.textContent = "Sticker Sketchpad";
@@ -16,7 +42,7 @@ function setupUI(): void {
   document.body.appendChild(canvas);
 
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) throw new Error("Canvas not supported");
 
   //Buttons
   const buttonContainer = document.createElement("div");
@@ -36,38 +62,30 @@ function setupUI(): void {
   document.body.appendChild(buttonContainer);
 
   //Drawing
-  const lines: { x: number; y: number }[][] = [];
-  const redoLines: { x: number; y: number }[][] = [];
-  let currentLine: { x: number; y: number }[] | null;
-
-  const cursor = { active: false, x: 0, y: 0 };
+  const lines: DrawableCommand[] = [];
+  const redoLines: DrawableCommand[] = [];
+  let currentLine: MarkerLine | null = null;
 
   ctx.lineWidth = 2;
   ctx.strokeStyle = "black";
   ctx.lineCap = "round";
 
   canvas.addEventListener("mousedown", (e) => {
-    cursor.active = true;
-    cursor.x = e.offsetX;
-    cursor.y = e.offsetY;
-
-    currentLine = [];
+    currentLine = new MarkerLine(e.offsetX, e.offsetY);
     lines.push(currentLine);
-    redoLines.splice(0, redoLines.length);
-    currentLine.push({ x: cursor.x, y: cursor.y });
+    redoLines.length = 0;
 
     canvas.dispatchEvent(new CustomEvent("drawing-changed"));
   });
 
   canvas.addEventListener("mousemove", (e) => {
-    if (cursor.active && currentLine) {
-      currentLine.push({ x: e.offsetX, y: e.offsetY });
+    if (currentLine) {
+      currentLine.drag(e.offsetX, e.offsetY);
       canvas.dispatchEvent(new CustomEvent("drawing-changed"));
     }
   });
 
   canvas.addEventListener("mouseup", () => {
-    cursor.active = false;
     currentLine = null;
 
     canvas.dispatchEvent(new CustomEvent("drawing-changed"));
@@ -78,16 +96,8 @@ function setupUI(): void {
       throw Error("Error! Unsupported browser.");
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const line of lines) {
-      if (line.length > 1) {
-        ctx.beginPath();
-        const { x, y } = line[0];
-        ctx.moveTo(x, y);
-        for (const { x, y } of line) {
-          ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
+    for (const cmd of lines) {
+      cmd.display(ctx);
     }
   }
 
@@ -95,7 +105,8 @@ function setupUI(): void {
 
   //Clear function
   function clear(): void {
-    lines.splice(0, lines.length);
+    lines.length = 0;
+    redoLines.length = 0;
     canvas.dispatchEvent(new CustomEvent("drawing-changed"));
   }
 
