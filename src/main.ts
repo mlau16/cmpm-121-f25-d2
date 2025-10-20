@@ -33,6 +33,27 @@ class MarkerLine implements DrawableCommand {
   }
 }
 
+//Tool Preview
+class ToolPreview {
+  private x: number;
+  private y: number;
+  private thickness: number;
+
+  constructor(x: number, y: number, thickness: number) {
+    this.x = x;
+    this.y = y;
+    this.thickness = thickness;
+  }
+
+  display(ctx: CanvasRenderingContext2D): void {
+    ctx.beginPath();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(0, 0, 0, 1)";
+    ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function setupUI(): void {
   const title: HTMLHeadingElement = document.createElement("h1");
   title.textContent = "Sticker Sketchpad";
@@ -70,7 +91,7 @@ function setupUI(): void {
     thickButton,
     undoButton,
     redoButton,
-    clearButton
+    clearButton,
   );
   document.body.appendChild(buttonContainer);
 
@@ -78,16 +99,22 @@ function setupUI(): void {
   const lines: DrawableCommand[] = [];
   const redoLines: DrawableCommand[] = [];
   let currentLine: MarkerLine | null = null;
+  let toolPreview: ToolPreview | null = null;
   let currentThickness = 2;
 
   ctx.strokeStyle = "black";
   ctx.lineCap = "round";
 
   //Select Thickness
-  function selectThickness(thickness: number, selectedButton: HTMLButtonElement): void{
+  function selectThickness(
+    thickness: number,
+    selectedButton: HTMLButtonElement,
+  ): void {
     currentThickness = thickness;
 
-    [thinButton, thickButton].forEach((btn) => btn.classList.remove("selectedTool"));
+    [thinButton, thickButton].forEach((btn) =>
+      btn.classList.remove("selectedTool")
+    );
     selectedButton.classList.add("selectedTool");
   }
 
@@ -105,6 +132,10 @@ function setupUI(): void {
   });
 
   canvas.addEventListener("mousemove", (e) => {
+    if (!currentLine) {
+      toolPreview = new ToolPreview(e.offsetX, e.offsetY, currentThickness);
+      canvas.dispatchEvent(new CustomEvent("tool-moved"));
+    }
     if (currentLine) {
       currentLine.drag(e.offsetX, e.offsetY);
       canvas.dispatchEvent(new CustomEvent("drawing-changed"));
@@ -117,6 +148,10 @@ function setupUI(): void {
     canvas.dispatchEvent(new CustomEvent("drawing-changed"));
   });
 
+  canvas.addEventListener("mouseleave", () => {
+    toolPreview = null;
+    canvas.dispatchEvent(new CustomEvent("drawing-changed"));
+  });
   function redraw() {
     if (!ctx) {
       throw Error("Error! Unsupported browser.");
@@ -125,9 +160,13 @@ function setupUI(): void {
     for (const cmd of lines) {
       cmd.display(ctx);
     }
+    if (toolPreview && !currentLine) {
+      toolPreview.display(ctx);
+    }
   }
 
   canvas.addEventListener("drawing-changed", redraw);
+  canvas.addEventListener("tool-moved", redraw);
 
   //Clear function
   function clear(): void {
