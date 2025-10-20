@@ -10,9 +10,11 @@ interface DrawableCommand {
 
 class MarkerLine implements DrawableCommand {
   private points: { x: number; y: number }[] = [];
+  private thickness: number;
 
-  constructor(startX: number, startY: number) {
+  constructor(startX: number, startY: number, thickness: number) {
     this.points.push({ x: startX, y: startY });
+    this.thickness = thickness;
   }
 
   drag(x: number, y: number): void {
@@ -22,6 +24,7 @@ class MarkerLine implements DrawableCommand {
   display(ctx: CanvasRenderingContext2D): void {
     if (this.points.length < 2) return;
     ctx.beginPath();
+    ctx.lineWidth = this.thickness;
     ctx.moveTo(this.points[0].x, this.points[0].y);
     for (const pt of this.points) {
       ctx.lineTo(pt.x, pt.y);
@@ -47,6 +50,12 @@ function setupUI(): void {
   //Buttons
   const buttonContainer = document.createElement("div");
 
+  const thinButton = document.createElement("button");
+  thinButton.textContent = "Thin Marker";
+
+  const thickButton = document.createElement("button");
+  thickButton.textContent = "Thick Marker";
+
   const undoButton = document.createElement("button");
   undoButton.textContent = "Undo";
 
@@ -56,22 +65,39 @@ function setupUI(): void {
   const clearButton = document.createElement("button");
   clearButton.textContent = "Clear";
 
-  buttonContainer.appendChild(undoButton);
-  buttonContainer.appendChild(redoButton);
-  buttonContainer.appendChild(clearButton);
+  buttonContainer.append(
+    thinButton,
+    thickButton,
+    undoButton,
+    redoButton,
+    clearButton
+  );
   document.body.appendChild(buttonContainer);
 
   //Drawing
   const lines: DrawableCommand[] = [];
   const redoLines: DrawableCommand[] = [];
   let currentLine: MarkerLine | null = null;
+  let currentThickness = 2;
 
-  ctx.lineWidth = 2;
   ctx.strokeStyle = "black";
   ctx.lineCap = "round";
 
+  //Select Thickness
+  function selectThickness(thickness: number, selectedButton: HTMLButtonElement): void{
+    currentThickness = thickness;
+
+    [thinButton, thickButton].forEach((btn) => btn.classList.remove("selectedTool"));
+    selectedButton.classList.add("selectedTool");
+  }
+
+  thinButton.addEventListener("click", () => selectThickness(2, thinButton));
+  thickButton.addEventListener("click", () => selectThickness(6, thickButton));
+
+  thinButton.classList.add("selectedTool");
+
   canvas.addEventListener("mousedown", (e) => {
-    currentLine = new MarkerLine(e.offsetX, e.offsetY);
+    currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
     lines.push(currentLine);
     redoLines.length = 0;
 
