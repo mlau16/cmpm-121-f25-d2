@@ -54,6 +54,53 @@ class ToolPreview {
   }
 }
 
+//Stickers
+class StickerCommand implements DrawableCommand {
+  private x: number;
+  private y: number;
+  private emoji: string;
+
+  constructor(x: number, y: number, emoji: string) {
+    this.x = x;
+    this.y = y;
+    this.emoji = emoji;
+  }
+
+  drag(x: number, y: number): void {
+    this.x = x;
+    this.y = y;
+  }
+
+  display(ctx: CanvasRenderingContext2D): void {
+    ctx.font = "32px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(this.emoji, this.x, this.y);
+  }
+}
+
+//Sticker preview
+class StickerPreview {
+  private x: number;
+  private y: number;
+  private emoji: string;
+
+  constructor(x: number, y: number, emoji: string) {
+    this.x = x;
+    this.y = y;
+    this.emoji = emoji;
+  }
+
+  display(ctx: CanvasRenderingContext2D): void {
+    ctx.globalAlpha = 0.5;
+    ctx.font = "32px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(this.emoji, this.x, this.y);
+    ctx.globalAlpha = 1.0;
+  }
+}
+
 function setupUI(): void {
   const title: HTMLHeadingElement = document.createElement("h1");
   title.textContent = "Sticker Sketchpad";
@@ -77,6 +124,15 @@ function setupUI(): void {
   const thickButton = document.createElement("button");
   thickButton.textContent = "Thick Marker";
 
+  const stickerButtons: HTMLButtonElement[] = [];
+  const stickers = ["🌸", "⭐️", "☁️"];
+  for (const emoji of stickers) {
+    const btn = document.createElement("button");
+    btn.textContent = emoji;
+    stickerButtons.push(btn);
+    buttonContainer.appendChild(btn);
+  }
+
   const undoButton = document.createElement("button");
   undoButton.textContent = "Undo";
 
@@ -99,8 +155,11 @@ function setupUI(): void {
   const lines: DrawableCommand[] = [];
   const redoLines: DrawableCommand[] = [];
   let currentLine: MarkerLine | null = null;
-  let toolPreview: ToolPreview | null = null;
+  let toolPreview: ToolPreview | StickerPreview | null = null;
   let currentThickness = 2;
+  let currentTool: "marker" | "sticker" = "marker";
+  let currentSticker: string = stickers[0];
+  let activeStickerCommand: StickerCommand | null = null;
 
   ctx.strokeStyle = "black";
   ctx.lineCap = "round";
@@ -123,28 +182,61 @@ function setupUI(): void {
 
   thinButton.classList.add("selectedTool");
 
+  //Select Sticker
+  for (const btn of stickerButtons) {
+    btn.addEventListener("click", () => {
+      currentTool = "sticker";
+      currentSticker = btn.textContent ?? "";
+      [thinButton, thickButton, ...stickerButtons].forEach((b) =>
+        b.classList.remove("selectedTool")
+      );
+      btn.classList.add("selectedTool");
+      canvas.dispatchEvent(new CustomEvent("tool-moved"));
+    });
+  }
+
   canvas.addEventListener("mousedown", (e) => {
-    currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
-    lines.push(currentLine);
+    if (currentTool === "marker") {
+      currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
+      lines.push(currentLine);
+    } else if (currentTool === "sticker") {
+      activeStickerCommand = new StickerCommand(
+        e.offsetX,
+        e.offsetY,
+        currentSticker,
+      );
+      lines.push(activeStickerCommand);
+    }
     redoLines.length = 0;
 
     canvas.dispatchEvent(new CustomEvent("drawing-changed"));
   });
 
   canvas.addEventListener("mousemove", (e) => {
-    if (!currentLine) {
-      toolPreview = new ToolPreview(e.offsetX, e.offsetY, currentThickness);
+    if (!currentLine && !activeStickerCommand) {
+      if (currentTool === "marker") {
+        toolPreview = new ToolPreview(e.offsetX, e.offsetY, currentThickness);
+      } else if (currentTool === "sticker") {
+        toolPreview = new StickerPreview(e.offsetX, e.offsetY, currentSticker);
+      }
       canvas.dispatchEvent(new CustomEvent("tool-moved"));
     }
+
     if (currentLine) {
       currentLine.drag(e.offsetX, e.offsetY);
+      canvas.dispatchEvent(new CustomEvent("drawing-changed"));
+    }
+
+    if (activeStickerCommand) {
+      activeStickerCommand.drag(e.offsetX, e.offsetY);
       canvas.dispatchEvent(new CustomEvent("drawing-changed"));
     }
   });
 
   canvas.addEventListener("mouseup", () => {
     currentLine = null;
-
+    activeStickerCommand = null;
+    toolPreview = null;
     canvas.dispatchEvent(new CustomEvent("drawing-changed"));
   });
 
