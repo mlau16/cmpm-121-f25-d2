@@ -100,6 +100,9 @@ function setupUI(): void {
   const stickerButtons: HTMLButtonElement[] = [];
   const stickers = ["🌸", "⭐️", "☁️"];
 
+  const exportButton = document.createElement("button");
+  exportButton.textContent = "Export";
+
   const stickerContainer = document.createElement("div");
 
   function renderStickerButtons() {
@@ -152,6 +155,7 @@ function setupUI(): void {
     undoButton,
     redoButton,
     clearButton,
+    exportButton,
   );
   document.body.append(buttonContainer, stickerContainer);
 
@@ -259,5 +263,24 @@ function setupUI(): void {
   redoButton.addEventListener("click", () => {
     if (redoLines.length > 0) lines.push(redoLines.pop()!);
     canvas.dispatchEvent(new CustomEvent("drawing-changed"));
+  });
+
+  exportButton.addEventListener("click", () => {
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = 1024;
+    exportCanvas.height = 1024;
+
+    const exportCtx = exportCanvas.getContext("2d") as CanvasRenderingContext2D;
+
+    exportCtx.scale(4, 4);
+
+    for (const cmd of lines) {
+      cmd.display(exportCtx);
+    }
+
+    const anchor = document.createElement("a");
+    anchor.href = exportCanvas.toDataURL("image/png");
+    anchor.download = "sketchpad.png";
+    anchor.click();
   });
 }
