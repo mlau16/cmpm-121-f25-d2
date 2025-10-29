@@ -8,9 +8,16 @@ interface DrawableCommand {
 
 class MarkerLine implements DrawableCommand {
   private points: { x: number; y: number }[] = [];
+  private color: string;
 
-  constructor(startX: number, startY: number, private thickness: number) {
+  constructor(
+    startX: number,
+    startY: number,
+    private thickness: number,
+    color: string,
+  ) {
     this.points.push({ x: startX, y: startY });
+    this.color = color;
   }
 
   drag(x: number, y: number) {
@@ -21,6 +28,7 @@ class MarkerLine implements DrawableCommand {
     if (this.points.length < 2) return;
     ctx.beginPath();
     ctx.lineWidth = this.thickness;
+    ctx.strokeStyle = this.color;
     ctx.moveTo(this.points[0].x, this.points[0].y);
     for (const pt of this.points) ctx.lineTo(pt.x, pt.y);
     ctx.stroke();
@@ -45,7 +53,15 @@ class ToolPreview {
 
 //Stickers
 class StickerCommand implements DrawableCommand {
-  constructor(private x: number, private y: number, private emoji: string) {}
+  private rotation: number = 0;
+  constructor(
+    private x: number,
+    private y: number,
+    private emoji: string,
+    rotation: number,
+  ) {
+    this.rotation = rotation;
+  }
 
   drag(x: number, y: number) {
     this.x = x;
@@ -53,10 +69,14 @@ class StickerCommand implements DrawableCommand {
   }
 
   display(ctx: CanvasRenderingContext2D) {
-    ctx.font = "32px serif";
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate((this.rotation * Math.PI) / 180);
+    ctx.font = "48px serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(this.emoji, this.x, this.y);
+    ctx.fillText(this.emoji, 0, 0);
+    ctx.restore();
   }
 }
 
@@ -102,6 +122,24 @@ function setupUI(): void {
 
   const exportButton = document.createElement("button");
   exportButton.textContent = "Export";
+
+  const colorSlider = document.createElement("input");
+  colorSlider.type = "range";
+  colorSlider.min = "0";
+  colorSlider.max = "360";
+  colorSlider.value = "0";
+  const colorLabel = document.createElement("label");
+  colorLabel.textContent = "Marker Hue:";
+  document.body.append(colorLabel, colorSlider);
+
+  const rotationSlider = document.createElement("input");
+  rotationSlider.type = "range";
+  rotationSlider.min = "0";
+  rotationSlider.max = "360";
+  rotationSlider.value = "0";
+  const rotationLabel = document.createElement("label");
+  rotationLabel.textContent = "Sticker Rotation:";
+  document.body.append(rotationLabel, rotationSlider);
 
   const stickerContainer = document.createElement("div");
 
@@ -192,13 +230,22 @@ function setupUI(): void {
 
   canvas.addEventListener("mousedown", (e) => {
     if (currentTool === "marker") {
-      currentLine = new MarkerLine(e.offsetX, e.offsetY, currentThickness);
+      const hue = parseInt(colorSlider.value);
+      const color = `hsl(${hue}, 100%, 50%)`;
+      currentLine = new MarkerLine(
+        e.offsetX,
+        e.offsetY,
+        currentThickness,
+        color,
+      );
       lines.push(currentLine);
     } else {
+      const rotation = parseInt(rotationSlider.value);
       activeStickerCommand = new StickerCommand(
         e.offsetX,
         e.offsetY,
         currentSticker,
+        rotation,
       );
       lines.push(activeStickerCommand);
     }
