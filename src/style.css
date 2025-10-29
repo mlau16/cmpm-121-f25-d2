@@ -23,9 +23,23 @@ h1 {
   margin: 20px auto;
 }
 
+button {
+  padding: 6px 10px;
+  margin: 4px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.2s ease;
+}
+button:hover {
+  transform: scale(1.05);
+  background: #eee;
+}
+
 .selectedTool {
-  background-color: #222;
+  background-color: #333;
   color: rgb(255, 255, 255);
+  transform: scale(1.1);
 }
 
 #app-canvas {

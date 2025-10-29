@@ -66,7 +66,7 @@ class StickerPreview {
 
   display(ctx: CanvasRenderingContext2D) {
     ctx.globalAlpha = 0.5;
-    ctx.font = "32px serif";
+    ctx.font = "48px";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(this.emoji, this.x, this.y);
@@ -186,8 +186,8 @@ function setupUI(): void {
     canvas.dispatchEvent(new CustomEvent("tool-moved"));
   }
 
-  thinButton.addEventListener("click", () => selectThickness(2, thinButton));
-  thickButton.addEventListener("click", () => selectThickness(6, thickButton));
+  thinButton.addEventListener("click", () => selectThickness(4, thinButton));
+  thickButton.addEventListener("click", () => selectThickness(10, thickButton));
   thinButton.classList.add("selectedTool");
 
   canvas.addEventListener("mousedown", (e) => {
